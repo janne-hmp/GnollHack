@@ -7,6 +7,7 @@
 #include "hack.h"
 #include <math.h>
 
+
 /* spellmenu arguments; 0 thru n-1 used as spl_book[] index when swapping */
 #define SPELLMENU_DETAILS (-4)
 #define SPELLMENU_PREPARE (-3)
@@ -51,6 +52,12 @@ STATIC_DCL int FDECL(throwspell, (int));
 STATIC_DCL void FDECL(spell_backfire, (int));
 STATIC_DCL boolean FDECL(spell_aim_step, (genericptr_t, int, int));
 #endif
+STATIC_DCL const char* FDECL(get_spell_type, (int));
+STATIC_DCL const char* FDECL(get_attribute, (int));
+STATIC_DCL const char* FDECL(get_targeting, (unsigned int));
+STATIC_DCL const char* FDECL(get_spell_level_bonus, (int));
+STATIC_DCL const char* FDECL(get_components, (int));
+STATIC_DCL const char* FDECL(get_material_components, (int));
 STATIC_DCL const char *FDECL(spelltypemnemonic, (int));
 STATIC_DCL const char* FDECL(spelltypesymbol, (int));
 STATIC_DCL int FDECL(domaterialcomponentsmenu, (int));
@@ -1673,6 +1680,421 @@ int otyp;
         return "charisma";
     else
         return "unknown type";
+}
+
+STATIC_OVL const char*
+get_spell_type(skill)
+int skill;
+{
+    switch (skill) {
+    case P_ARCANE_SPELL:
+        return "arcane";
+    case P_HEALING_SPELL:
+        return "healing";
+    case P_DIVINATION_SPELL:
+        return "divination";
+    case P_ENCHANTMENT_SPELL:
+        return "enchantment";
+    case P_CLERIC_SPELL:
+        return "clerical";
+    case P_MOVEMENT_SPELL:
+        return "movement";
+    case P_TRANSMUTATION_SPELL:
+        return "transmutation";
+    case P_CONJURATION_SPELL:
+        return "conjuration";
+    case P_ABJURATION_SPELL:
+        return "abjuration";
+    case P_CELESTIAL_SPELL:
+        return "celestial";
+    case P_NATURE_SPELL:
+        return "nature";
+    case P_NECROMANCY_SPELL:
+        return "necromancy";
+    default:
+        //impossible("Unknown spell skill, %d;", skill);    //TODO: quoted out because generating error in wiz-mode. Find out why switching to default.
+        return "Not applicable";
+    }
+}
+
+STATIC_OVL const char*
+get_attribute(attrno)
+int attrno;
+{
+    if (attrno >= 0)
+    {
+        switch (attrno)
+        {
+        case A_STR:
+            return "Strength";
+            break;
+        case A_DEX:
+            return "Dexterity";
+            break;
+        case A_CON:
+            return "Constitution";
+            break;
+        case A_INT:
+            return "Intelligence";
+            break;
+        case A_WIS:
+            return "Wisdom";
+            break;
+        case A_CHA:
+            return "Charisma";
+            break;
+        case A_MAX_INT_WIS:
+            return "Higher of intelligence and wisdom";
+            break;
+        case A_MAX_INT_CHA:
+            return "Higher of intelligence and charisma";
+            break;
+        case A_MAX_WIS_CHA:
+            return "Higher of wisdom and charisma";
+            break;
+        case A_MAX_INT_WIS_CHA:
+            return "Higher of intelligence, wisdom, and charisma";
+            break;
+        case A_AVG_INT_WIS:
+            return "Average of intelligence and wisdom";
+            break;
+        case A_AVG_INT_CHA:
+            return "Average of intelligence and charisma";
+            break;
+        case A_AVG_WIS_CHA:
+            return "Average of wisdom and charisma";
+            break;
+        case A_AVG_INT_WIS_CHA:
+            return "Average of intelligence, wisdom, and charisma";
+            break;
+        default:
+            return "Not applicable";
+            break;
+        }
+    }
+    return "None";
+}
+
+STATIC_OVL const char*
+get_targeting(skill)
+unsigned int skill;
+{
+    if (skill > 0)
+    {
+        switch (skill)
+        {
+        case NODIR:
+            return "None";
+            break;
+        case IMMEDIATE:
+            return "One target in selected direction";
+            break;
+        case RAY:
+            if (skill & S1_SPELL_EXPLOSION_EFFECT)                  // TODO: S1_SPELL_EXPLOSION_EFFECT necessary? Bitwise and?
+                return "Ray that explodes on hit";
+            else
+                return "Ray in selected direction";
+            break;
+        case TARGETED:
+            return "Target selected on screen";
+            break;
+        case TOUCH:
+            return "Touch";
+            break;
+        case IMMEDIATE_MULTIPLE_TARGETS:
+            return "Multiple targets in selected direction";
+            break;
+        case IMMEDIATE_ONE_TO_THREE_TARGETS:
+            return "1/2/3 targets in selected direction depending on blessedness";
+            break;
+        case IMMEDIATE_ONE_TO_SEVEN_TARGETS:
+            return "1/4/7 targets in selected direction depending on blessedness";
+            break;
+        case IMMEDIATE_TWO_TO_SIX_TARGETS:
+            return "2/4/6 targets in selected direction depending on blessedness";
+            break;
+        default:
+            return "Targeting not applicable";
+            break;
+        }
+    }
+    else
+        return "Targeting skill was <=0, not applicable";
+}
+
+STATIC_OVL const char*
+get_spell_level_bonus(skill)
+int skill; 
+{
+    char buf[BUFSIZ];
+    char plusbuf[BUFSIZ];
+    boolean maindiceprinted = FALSE;
+    
+    Sprintf(buf, "- **Level bonus:**  ");
+
+    if ((objects[skill].oc_spell_flags & S1_LDMG_IS_PER_LEVEL_DMG_INCREASE) && objects[skill].oc_spell_per_level_step > 0)      // TODO: Bitwise AND needed here?
+    {
+        if (objects[skill].oc_spell_per_level_dice > 0 && objects[skill].oc_spell_per_level_diesize > 0)
+        {
+            maindiceprinted = TRUE;
+            Sprintf(plusbuf, "            %dd%d", objects[skill].oc_spell_per_level_dice, objects[skill].oc_spell_per_level_diesize);
+            Strcat(buf, plusbuf);
+        }
+
+        if (objects[skill].oc_spell_per_level_plus != 0)
+        {
+            if (maindiceprinted && objects[skill].oc_spell_per_level_plus > 0)
+            {
+                Sprintf(plusbuf, "+");
+                Strcat(buf, plusbuf);
+            }
+            Sprintf(plusbuf, "%d", objects[skill].oc_spell_per_level_plus);
+            Strcat(buf, plusbuf);
+        }
+
+        if (objects[skill].oc_spell_per_level_step == 1)
+            Sprintf(plusbuf, " per caster level");
+        else
+            Sprintf(plusbuf, " per %ld caster levels", objects[skill].oc_spell_per_level_step);
+
+        Strcat(buf, plusbuf);
+    }
+    else
+    {
+        Sprintf(buf, "");
+    }
+    
+    return buf;
+}
+
+STATIC_OVL const char*
+get_components(skill)
+int skill;
+{
+    char buf[BUFSIZ];
+    char buf2[BUFSIZ];
+
+    if (objects[skill].oc_spell_flags & S1_SPELL_BYPASSES_MAGIC_RESISTANCE)
+    {
+        if (objects[skill].oc_spell_flags & S1_SPELL_BYPASSES_UNIQUE_MONSTER_MAGIC_RESISTANCE)
+            Sprintf(buf, "Other:            %s", "Bypasses magic resistance for all monsters");
+        else
+            Sprintf(buf, "Other:            %s", "Bypasses magic resistance for non-unique monsters");
+    }
+
+    Strcpy(buf2, "");
+    if (!(objects[skill].oc_spell_flags & S1_NO_VERBAL_COMPONENT))
+        Strcpy(buf2, "Verbal");
+
+    if (!(objects[skill].oc_spell_flags & S1_NO_SOMATIC_COMPONENT))
+    {
+        if (strcmp(buf2, ""))
+            Strcpy(eos(buf2), ", ");
+
+        Strcpy(eos(buf2), "Somatic");
+    }
+
+    if (objects[skill].oc_material_components > 0)
+    {
+        if (strcmp(buf2, ""))
+            Strcpy(eos(buf2), ", ");
+
+        Strcpy(eos(buf2), "Material");
+    }
+
+    if (!strcmp(buf2, ""))
+        Strcpy(buf2, "None");
+
+    Sprintf(buf, "Components:               %s", buf2);
+    
+    return buf;
+}
+
+STATIC_OVL const char*
+get_material_components(skill)
+int skill;
+{
+    char buf[BUFSIZ];
+    char buf2[BUFSIZ];
+
+    if (objects[skill].oc_material_components > 0)
+    {
+        Sprintf(buf2, "%d casting%s", matlists[objects[skill].oc_material_components].spellsgained,
+            matlists[objects[skill].oc_material_components].spellsgained == 1 ? "" : "s");
+
+        Sprintf(buf, "Material components - %s:  \n", buf2);
+
+        for (int i = 0; matlists[objects[skill].oc_material_components].matcomp[i].objectid[0] > 0; i++)
+        {
+            Sprintf(buf2, "%d\. %s%s  \n", (i+1), domatcompname(&matlists[objects[skill].oc_material_components].matcomp[i]),
+                ((matlists[objects[skill].oc_material_components].matcomp[i].flags & MATCOMP_NOT_SPENT) ? " as a catalyst" : ""));
+            
+            (void)strcat(buf, buf2);
+        }
+    }
+    else
+        Sprintf(buf, "%s  \n", "No material components");
+
+    return buf;
+}
+
+int
+export_spells_for_wiki() {                              // Copied mostly from spelldescription(), below
+
+    pline("Starting writing spells...");
+
+    (void)mkdir("\\spells_for_wiki\\");                 // TODO: Is it needed to have something checking if the folder exists?
+
+    char* cwd[BUFSIZ];
+    char fq_save[BUFSIZ];
+    char name[BUFSIZ];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        (void)strcat(cwd, "\\spells_for_wiki\\");
+        //pline("Current working dir: %s\n", cwd);
+    }
+    else {
+        pline("getcwd() error");
+        return 0;
+    }
+
+    for (int i = FIRST_SPELL; i <= SPE_BOOK_OF_THE_DEAD; i++) {
+
+        name[0] = '\0';
+        (void)strcat(name, obj_descr[objects[i].oc_name_idx].oc_name);
+        for (int j = 0; j < strlen(name); j++) {
+
+            if (name[j] == ' ') name[j] = '-';
+        }
+
+        *name = highc(*name);
+
+        fq_save[0] = '\0';
+        (void)strcat(fq_save, cwd);
+        (void)strcat(fq_save, name);
+        (void)strcat(fq_save, ".md");
+
+        int fd;
+
+        (void)remove(fq_save);
+
+#ifdef MAC
+        fd = macopen(fq_save, O_WRONLY | O_TEXT | O_CREAT | O_TRUNC, TEXT_TYPE);
+#else
+        fd = open(fq_save, O_WRONLY | O_TEXT | O_CREAT | O_TRUNC, FCMASK);
+#endif
+        char buf[BUFSIZ];
+        char plusbuf[BUFSIZ];
+
+        // Spell level
+        if (objects[i].oc_spell_level == -1) {
+            Sprintf(buf, "## Minor %s cantrip\n\n", get_spell_type(objects[i].oc_skill));
+            (void)write(fd, buf, strlen(buf));
+        }
+        else if (objects[i].oc_spell_level == 0) {
+            Sprintf(buf, "## Major %s cantrip\n\n", get_spell_type(objects[i].oc_skill));
+            (void)write(fd, buf, strlen(buf));
+        }
+        else if (objects[i].oc_spell_level > 0) {
+            Sprintf(buf, "## Level %ld %s spell\n\n", objects[i].oc_spell_level, get_spell_type(objects[i].oc_skill));
+            (void)write(fd, buf, strlen(buf));
+        }
+        else {
+            Sprintf(buf, "## Spell of inappropriate level\n\n");
+            (void)write(fd, buf, strlen(buf));
+        }
+
+        // Spell primary casting attribute
+        Sprintf(buf, "- **Attribute:**                %s  \n", get_attribute(objects[i].oc_spell_attribute));
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell mana cost
+        Sprintf(buf, "- **Mana cost:**                %.1f  \n", (double)objects[i].oc_spell_mana_cost);    // TODO: does this need further calculation?        
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell casting time
+        if (objects[i].oc_spell_flags & S1_DOES_NOT_TAKE_A_TURN)                                            // TODO: S1_DOES_NOT_TAKE_A_TURN necessary?
+            Sprintf(buf, "- **Casting time:**             0 rounds  \n");
+        else
+            Sprintf(buf, "- **Casting time:**             1 round  \n");
+
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell cooldown
+        if (objects[i].oc_spell_cooldown > 0)
+            Sprintf(buf, "- **Spell cooldown:**        %ld round%s  \n", objects[i].oc_spell_cooldown, objects[i].oc_spell_cooldown == 1 ? "" : "s");
+        else
+            Sprintf(buf, "- **Spell cooldown:**           None  \n");
+
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell targeting direction
+        Sprintf(buf, "- **Targeting:**                %s  \n", get_targeting(objects[i].oc_dir));
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell range
+        if (objects[i].oc_spell_range > 0)
+            Sprintf(buf, "- **Range:**                    %ld'  \n", objects[i].oc_spell_range * 5L);
+        else
+            Sprintf(buf, "- **Range:**                     0'  \n");
+        (void)write(fd, buf, strlen(buf));
+
+        // Damage or healing
+        if (objects[i].oc_spell_dmg_dice != 0 && objects[i].oc_spell_dmg_diesize != 0) {
+            if (objects[i].oc_skill == P_HEALING_SPELL)
+                Sprintf(buf, "- **Healing:**                  ");
+            else
+                Sprintf(buf, "- **Damage:**                   ");
+
+            Sprintf(plusbuf, "%dd%d  \n", objects[i].oc_spell_dmg_dice, objects[i].oc_spell_dmg_diesize);
+            (void)strcat(buf, plusbuf);
+            (void)write(fd, buf, strlen(buf));
+        }
+
+        // Spell level bonus
+        Sprintf(buf, get_spell_level_bonus(i));
+        Sprintf(plusbuf, "  \n");
+        (void)strcat(buf, plusbuf);
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell damage type
+        if (objects[i].oc_damagetype != AD_NONE)
+        {
+            char dmgttext[BUFSIZ] = "";
+            Strcpy(dmgttext, get_damage_type_text(objects[i].oc_damagetype));
+            *dmgttext = highc(*dmgttext);
+            if (strcmp(dmgttext, "") != 0)
+            {
+                Sprintf(buf, "- **Damage type:**              %s  \n", dmgttext);
+                (void)write(fd, buf, strlen(buf));
+            }
+        }
+
+        // Spell skill chance
+        Sprintf(buf, "- **Train chance:**             %ld%%  \n", objects[i].oc_spell_skill_chance);
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell components
+        Sprintf(buf, "### %s  \n", get_components(i));
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell material components
+        Sprintf(buf, "### ");
+        Sprintf(plusbuf, "%s", get_material_components(i));
+        (void)strcat(buf, plusbuf);
+        (void)write(fd, buf, strlen(buf));
+
+        // Spell description
+        Sprintf(buf, "## Description:  \n");
+        Sprintf(plusbuf, "%s", obj_descr[objects[i].oc_name_idx].oc_item_description);
+        (void)write(fd, buf, strlen(buf));
+        (void)write(fd, plusbuf, strlen(plusbuf));
+        
+        (void)close(fd);
+    }
+
+    pline("Done!");
+
+    return 0;
 }
 
 int

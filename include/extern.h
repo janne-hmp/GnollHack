@@ -3444,6 +3444,7 @@ E int NDECL(dospellmanage);
 E int NDECL(dospellview);
 E int FDECL(spell_skilltype, (int));
 E int FDECL(spelleffects, (int, BOOLEAN_P, struct monst*));
+E int NDECL(export_spells_for_wiki);
 E int FDECL(spelldescription, (int));
 E const char* FDECL(get_obj_saving_throw_description, (struct obj*));
 E const char* FDECL(get_otyp_saving_throw_description, (int));

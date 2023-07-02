@@ -181,6 +181,7 @@ STATIC_DCL int NDECL(wiz_save_tiledata);
 STATIC_DCL int NDECL(wiz_count_tiles);
 STATIC_DCL int NDECL(wiz_save_glyph2tiles);
 STATIC_DCL int NDECL(wiz_save_quest_texts);
+STATIC_DCL int NDECL(wiz_save_spells);
 #endif
 STATIC_DCL void NDECL(wiz_levltyp_legend);
 #if defined(__BORLANDC__) && !defined(_WIN32)
@@ -235,6 +236,10 @@ STATIC_DCL void NDECL(check_gui_special_effect);
 STATIC_DCL void FDECL(print_monster_abilities, (winid, int*, BOOLEAN_P));
 STATIC_DCL void FDECL(print_weapon_skill_line_core, (enum p_skills, BOOLEAN_P, int));
 STATIC_DCL void FDECL(print_weapon_skill_line, (struct obj*, BOOLEAN_P, int));
+
+STATIC_DCL const char* FDECL(get_spell_type, (int)); //needed for wiz_save_spells
+STATIC_DCL const char* FDECL(get_attribute, (int)); //needed for wiz_save_spells
+STATIC_DCL const char* FDECL(get_targeting, (unsigned int)); //needed for wiz_save_spells
 
 STATIC_VAR const char *readchar_queue = "";
 STATIC_VAR coord clicklook_cc;
@@ -2556,7 +2561,180 @@ wiz_save_quest_texts(VOID_ARGS) /* Save a csv file for monsters */
 
     return 0;
 }
+
+
+/* Save spell list */
+STATIC_PTR int
+wiz_save_spells(VOID_ARGS) /* Save an md file of spells for wiki */
+{
+    if (wizard)
+        export_spells_for_wiki();
+    else
+        pline(unavailcmd, visctrl((int)cmd_from_func(wiz_save_spells)));
+
+    return 0;
+}
 #endif /* ifndef GNH_MOBILE */
+
+STATIC_OVL const char*
+get_spell_type(skill)
+int skill;
+{
+    switch (skill) {
+    case P_ARCANE_SPELL:
+        return "arcane";
+    case P_HEALING_SPELL:
+        return "healing";
+    case P_DIVINATION_SPELL:
+        return "divination";
+    case P_ENCHANTMENT_SPELL:
+        return "enchantment";
+    case P_CLERIC_SPELL:
+        return "clerical";
+    case P_MOVEMENT_SPELL:
+        return "movement";
+    case P_TRANSMUTATION_SPELL:
+        return "transmutation";
+    case P_CONJURATION_SPELL:
+        return "conjuration";
+    case P_ABJURATION_SPELL:
+        return "abjuration";
+    case P_CELESTIAL_SPELL:
+        return "celestial";
+    case P_NATURE_SPELL:
+        return "nature";
+    case P_NECROMANCY_SPELL:
+        return "necromancy";
+    default:
+        //impossible("Unknown spell skill, %d;", skill);    //TODO: quoted out because generating error in wiz-mode. Find out why switching to default.
+        return "Not applicable";
+    }
+}
+
+STATIC_OVL const char*
+get_attribute(attrno)
+int attrno;
+{
+    if (attrno >= 0)
+    {
+        switch (attrno)
+        {
+        case A_STR:
+            return "Strength";
+            break;
+        case A_DEX:
+            return "Dexterity";
+            break;
+        case A_CON:
+            return "Constitution";
+            break;
+        case A_INT:
+            return "Intelligence";
+            break;
+        case A_WIS:
+            return "Wisdom";
+            break;
+        case A_CHA:
+            return "Charisma";
+            break;
+        case A_MAX_INT_WIS:
+            return "Higher of intelligence and wisdom";
+            break;
+        case A_MAX_INT_CHA:
+            return "Higher of intelligence and charisma";
+            break;
+        case A_MAX_WIS_CHA:
+            return "Higher of wisdom and charisma";
+            break;
+        case A_MAX_INT_WIS_CHA:
+            return "Higher of intelligence, wisdom, and charisma";
+            break;
+        case A_AVG_INT_WIS:
+            return "Average of intelligence and wisdom";
+            break;
+        case A_AVG_INT_CHA:
+            return "Average of intelligence and charisma";
+            break;
+        case A_AVG_WIS_CHA:
+            return "Average of wisdom and charisma";
+            break;
+        case A_AVG_INT_WIS_CHA:
+            return "Average of intelligence, wisdom, and charisma";
+            break;
+        default:
+            return "Not applicable";
+            break;
+        }
+    }
+}
+
+/* Mana cost*/
+/*                                //TODO: further calculation for mana cost, copied from spell.c. Needed?
+STATIC_OVL const double*
+get_mana_cost(skill)
+int skill;
+{
+    double manacost = get_spellbook_adjusted_mana_cost(skill);
+    if (manacost > 0)
+    {
+        double displayed_manacost = ceil(10 * manacost) / 10;
+        Sprintf(buf2, "%.*f", displayed_manacost >= 100 ? 0 : 1, displayed_manacost);
+    }
+    else
+    {
+        Strcpy(buf2, "None");
+    }
+    Sprintf(buf, "Mana cost:        %s", buf2);
+    putstr(datawin, ATR_INDENT_AT_COLON, buf);
+}
+*/
+
+STATIC_OVL const char*
+get_targeting(skill)
+unsigned int skill;
+{
+    if (skill > 0)
+    {
+        switch (skill)
+        {
+        case NODIR:
+            return "None";
+            break;
+        case IMMEDIATE:
+            return "One target in selected direction";
+            break;
+        case RAY:
+            if (skill & S1_SPELL_EXPLOSION_EFFECT)                  // TODO: S1_SPELL_EXPLOSION_EFFECT necessary? Bitwise and?
+                return "Ray that explodes on hit";
+            else
+                return "Ray in selected direction";
+            break;
+        case TARGETED:
+            return "Target selected on screen";
+            break;
+        case TOUCH:
+            return "Touch";
+            break;
+        case IMMEDIATE_MULTIPLE_TARGETS:
+            return "Multiple targets in selected direction";
+            break;
+        case IMMEDIATE_ONE_TO_THREE_TARGETS:
+            return "1/2/3 targets in selected direction depending on blessedness";
+            break;
+        case IMMEDIATE_ONE_TO_SEVEN_TARGETS:
+            return "1/4/7 targets in selected direction depending on blessedness";
+            break;
+        case IMMEDIATE_TWO_TO_SIX_TARGETS:
+            return "2/4/6 targets in selected direction depending on blessedness";
+            break;
+        default:
+            return "Targeting not applicable";
+            break;
+        }
+    }
+    else
+        return "Targeting skill was <=0, not applicable";
+}
 
 /* temporary? hack, since level type codes aren't the same as screen
    symbols and only the latter have easily accessible descriptions */
@@ -5883,6 +6061,8 @@ struct ext_func_tab extcmdlist[] = {
             wiz_save_glyph2tiles, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
     { '\0', "wizsavequesttexts", "save quest texts into a file",
             wiz_save_quest_texts, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
+    { '\0', "wizsavespells", "save spells into a .md-file for wiki",
+            wiz_save_spells, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
 #endif
     { '\0', "wizcrown", "make the god crown you",
             wiz_crown, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
